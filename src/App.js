@@ -1,3 +1,6 @@
+import { useEffect } from "react";
+import ProductCarousel from "./ProductCarousel";
+
 function App() {
   useEffect(() => {
     const intervalId = setInterval(() => {
