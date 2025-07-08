@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import ProductCarousel from "./ProductCarousel";
+import ProductCarousel from "./components/ProductCarousel";
 
 function App() {
   useEffect(() => {
