@@ -1,60 +1,129 @@
 import React, { useEffect, useState } from "react";
-import { fetchProducts } from "../api";
-import ProductCard from "./ProductCard";
-import { useSwipeable } from "react-swipeable";
-import { FaArrowLeft, FaArrowRight } from "react-icons/fa";
+import { Swiper, SwiperSlide } from "swiper/react";
+import { Navigation, A11y } from "swiper/modules";
+import "swiper/css";
+import "swiper/css/navigation";
+import "./ProductCarousel.css";
+import StarRating from "./StarRating";
 
-function ProductCarousel() {
+const colorLabels = {
+    yellow: {
+        label: "Yellow Gold",
+        colorCode: "#E6CA97"
+    },
+    rose: {
+        label: "Rose Gold",
+        colorCode: "#E1A4A9"
+    },
+    white: {
+        label: "White Gold",
+        colorCode: "#D9D9D9"
+    }
+};
+
+export default function ProductCarousel() {
     const [products, setProducts] = useState([]);
-    const [start, setStart] = useState(0);
-    const visibleCount = 3;
+    const [selectedColors, setSelectedColors] = useState({});
 
     useEffect(() => {
-        fetchProducts().then((data) => {
-            console.log("API’den gelen veri:", data);
-            setProducts(data);
-        });
+        fetchProducts();
     }, []);
 
-    const next = () => {
-        setStart((prev) =>
-            Math.min(prev + visibleCount, products.length - visibleCount)
-        );
+    const fetchProducts = async () => {
+        try {
+            const response = await fetch("http://localhost:8080/v1/product/list");
+            if (!response.ok) {
+                throw new Error("API request failed");
+            }
+            const data = await response.json();
+
+            setProducts(data);
+
+
+            const colorSelections = {};
+            data.forEach(product => {
+                colorSelections[product.id] = "yellow";
+            });
+            setSelectedColors(colorSelections);
+        } catch (error) {
+            console.error(error);
+        }
     };
 
-    const prev = () => {
-        setStart((prev) => Math.max(prev - visibleCount, 0));
+    const handleColorChange = (productId, color) => {
+        setSelectedColors({
+            ...selectedColors,
+            [productId]: color
+        });
     };
 
-    const swipeHandlers = useSwipeable({
-        onSwipedLeft: next,
-        onSwipedRight: prev
-    });
+    const formatPrice = (price) => {
+        return `$${price.toFixed(2)} USD`;
+    };
+
+    const formatPopularity = (popularityScore) => {
+        const scoreOutOf5 = (popularityScore * 5).toFixed(1);
+        return `${scoreOutOf5}/5`;
+    };
 
     return (
-        <div className="relative w-full" {...swipeHandlers}>
-            <h2 className="text-2xl font-bold mb-4">Product List</h2>
-            <div className="flex gap-4 overflow-hidden">
-                {products.slice(start, start + visibleCount).map((product) => (
-                    <ProductCard key={product.id} product={product} />
-                ))}
-            </div>
-
-            <button
-                onClick={prev}
-                className="absolute left-0 top-1/2 -translate-y-1/2 bg-white p-2 shadow rounded-full"
+        <div className="product-carousel-container">
+            <h2 className="product-list-title">Product List</h2>
+            <Swiper
+                modules={[Navigation, A11y]}
+                spaceBetween={20}
+                slidesPerView={4}
+                navigation
+                breakpoints={{
+                    320: { slidesPerView: 1 },
+                    640: { slidesPerView: 2 },
+                    1024: { slidesPerView: 3 },
+                    1280: { slidesPerView: 4 }
+                }}
             >
-                <FaArrowLeft />
-            </button>
+                {products.map(product => {
+                    const selectedColor = selectedColors[product.id] || "yellow";
+                    const colorInfo = colorLabels[selectedColor];
 
-            <button
-                onClick={next}
-                className="absolute right-0 top-1/2 -translate-y-1/2 bg-white p-2 shadow rounded-full"
-            >
-                <FaArrowRight />
-            </button>
+                    return (
+                        <SwiperSlide key={product.id}>
+                            <div className="product-card">
+                                <img
+                                    src={product.images[selectedColor]}
+                                    alt={product.name}
+                                    className="product-image"
+                                />
+                                <h3 className="product-title">{product.name}</h3>
+                                <p className="product-price">{formatPrice(product.price)}</p>
+                                <p
+                                    className="product-color-label"
+                                    style={{ color: colorInfo.colorCode }}
+                                >
+                                    {colorInfo.label}
+                                </p>
+
+                                <div className="color-picker">
+                                    {Object.keys(colorLabels).map(color => (
+                                        <button
+                                            key={color}
+                                            className={`color-button ${selectedColor === color ? "selected" : ""
+                                                }`}
+                                            style={{
+                                                backgroundColor: colorLabels[color].colorCode
+                                            }}
+                                            onClick={() => handleColorChange(product.id, color)}
+                                        />
+                                    ))}
+                                </div>
+
+                                <p className="popularity">
+                                    Popularity: <StarRating score={product.popularityScore * 5} />
+                                </p>
+                            </div>
+                        </SwiperSlide>
+                    );
+                })}
+            </Swiper>
         </div>
     );
 }
-
-export default ProductCarousel;
